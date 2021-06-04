@@ -1,0 +1,18 @@
+{
+  "name": "artemis_crowdsale",
+  "version": "1.0.0",
+  "description": "Artemis (ARTM) Crowdsale",
+  "author": "Daniel Farley & Jamin Meyers",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^2.5.1"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.9",
+    "chai": "^4.3.4",
+    "solidity-coverage": "^0.7.16"
+  }
+}
