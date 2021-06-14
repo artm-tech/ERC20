@@ -1,7 +1,11 @@
 const BN = require('bignumber.js');
-const ArtmToken = artifacts.require("ArtmToken");
+const TestingOnlyToken = artifacts.require("TestingOnlyToken");
 const ArtmCrowdsale = artifacts.require("ArtmCrowdsale");
-const CrowdsaleWallet = artifacts.require("CrowdsaleWallet");
+const TestingOnlySplitter = artifacts.require("TestingOnlySplitter");
+
+const chai = require('chai');
+var expect = require('chai').expect;
+chai.use(require('chai-bn')(BN)).should();
 
 const duration = {
     seconds: function (val) { return val; },
@@ -32,12 +36,12 @@ async function timeJump(timeToInc) {
 contract('ArtmCrowdsale', accounts => {
     const exchange_rate = '10000000'; // 10 million ARTM per 1 ETH.
     const crowdsale_amount = new BN(500000000000).times( new BN(10).pow(18)); // 500 billion tokens
-    const withdraw_address = accounts[7]; // This is the address unsold tokens will be released to when crowdsale ends.
+    const withdraw_address = accounts[4]; // This is the address unsold tokens will be released to when crowdsale ends.
 
     beforeEach(async function(){
-        this.token = await ArtmToken.deployed();
+        this.token = await TestingOnlyToken.deployed();
         this.crowdsale = await ArtmCrowdsale.deployed();
-        this.crowdsaleWallet = await CrowdsaleWallet.deployed();
+        this.crowdsaleWallet = await TestingOnlySplitter.deployed();
     });
 
     describe('Token Properties:', function() {
@@ -65,6 +69,18 @@ contract('ArtmCrowdsale', accounts => {
         it('Has the correct rate', async function() {
             const crowdsale_rate = await this.crowdsale.rate();
             crowdsale_rate.toString().should.equal(exchange_rate);
+        });
+
+        // Retrieves the opening time
+        it('Retrieves the opening time', async function() {
+            const opening_time = await this.crowdsale.openingTime();
+            opening_time.toString().should.not.equal(0);
+        });
+
+        // Retrieves the closing time
+        it('Retrieves the closing time', async function() {
+            const closing_time = await this.crowdsale.closingTime();
+            closing_time.toString().should.not.equal(0);
         });
 
         // Verify that we currently have 0 wei raised.
@@ -209,6 +225,13 @@ contract('ArtmCrowdsale', accounts => {
             finalized.should.equal(true);
         });
 
-
+        it('Should fail to finalize a second time', async function(){
+            try {
+                await this.crowdsale.finalize();
+                assert.fail("Crowdsale finalized, crowdsale failed to previously finalize.");
+            } catch (err) {
+                assert.include(err.message, "revert", "The error message should contain 'revert'");
+            }
+        });
     });
 });

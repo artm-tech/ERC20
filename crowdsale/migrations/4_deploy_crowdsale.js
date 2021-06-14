@@ -1,16 +1,8 @@
 const BN = require('bignumber.js');
-
-/*
-* NOTE: Due to the crowdsale contract being compiled with a different version of solidity,
-* to streamline testing and deployment, we take its compiled .json artifact from the
-* `../crowdsale/build/contracts` directory and add it in our local build/contracts
-* directory for deployment. The alternative is to simply deploy the crowdsale from
-* it's own project directory with static values and to disable or remove this file.
-*/
 const ArtmCrowdsale = artifacts.require("ArtmCrowdsale");
+const TestingOnlyToken = artifacts.require("TestingOnlyToken");
+const TestingOnlySplitter = artifacts.require("TestingOnlySplitter");
 
-const CrowdsaleWallet = artifacts.require("CrowdsaleWallet");
-const ArtmToken = artifacts.require("ArtmToken");
 
 const duration = {
   seconds: function (val) { return val; },
@@ -27,16 +19,16 @@ const openingTime = timeNow + duration.days(1); // Open in 1 day
 const closingTime = openingTime + duration.days(14); // Stay open for 14 days
 
 // Set exchange rate to meet target launch price. THIS WILL LIKELY CHANGE AT LAUNCH, THIS VALUE IS FOR TESTING.
-const exchangeRate = '10000000'; // 10 million ARTM per 1 ETH.
+const exchangeRate = '10000000'; // 10 million TEST per 1 ETH.
 
 console.log('Opening: ' + openingTime);
 console.log('Closing: ' + closingTime);
 console.log('Exchange Rate: ' + exchangeRate);
 
 module.exports = async function(deployer, network, accounts){
-    const token = await ArtmToken.deployed();
-    const crowdsaleWallet = await CrowdsaleWallet.deployed();
-    const withdrawAddress = accounts[7];
+    const token = await TestingOnlyToken.deployed();
+    const crowdsaleWallet = await TestingOnlySplitter.deployed();
+    const withdrawAddress = accounts[4];
 
     await deployer.deploy(
       ArtmCrowdsale, // the withdraw crowdsale contract
