@@ -10,13 +10,13 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.0.0",
+    "mocha": "^8.4.0",
     "solc": "^0.8.0"
   },
   "devDependencies": {
-    "@openzeppelin/test-helpers": "^0.5.9",
+    "@openzeppelin/test-helpers": "^0.5.11",
     "chai": "^4.3.4",
     "ganache-cli": "^6.12.2",
-    "mocha": "^8.4.0",
     "solidity-coverage": "^0.7.16"
   }
 }
