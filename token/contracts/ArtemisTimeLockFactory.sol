@@ -36,9 +36,11 @@ contract ArtemisTimeLockFactory {
         uint256 _maxTranches,
         uint256 _tranchePercent
     ) external {
+        // Ensure the timeLock ID is not already in use.
+        require(timeLocks[_timeLockId] == address(0), "ArtemisTimeLockFactory: timeLock ID already in use.");
+
         // creates a new timelock contract with provided params.
         ArtemisTimeLock timeLock = new ArtemisTimeLock(
-            _timeLockId,
             token_,
             beneficiary_,
             releaseTime_,
