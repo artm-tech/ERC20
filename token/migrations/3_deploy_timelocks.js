@@ -1,5 +1,6 @@
 const BN = require('bignumber.js');
 const ArtmToken = artifacts.require("ArtmToken");
+const ArtemisTimeLock = artifacts.require("ArtemisTimeLock");
 const ArtemisTimeLockFactory = artifacts.require("ArtemisTimeLockFactory");
 
 const duration = {
@@ -43,7 +44,6 @@ module.exports = async function(deployer, network, accounts){
 
     The token timelock constructor for reference
     constructor(
-        uint256 _timeLockId,
         IERC20 token_,
         address beneficiary_,
         uint256 releaseTime_,
@@ -55,21 +55,24 @@ module.exports = async function(deployer, network, accounts){
     */
 
     /*
-     * Deploy timelock contract for team tokens using factory.
+     * Deploy timelock contract for community tokens using factory.
      * Note that the live deployment will likely break the team tokens up
      * into smaller increments by deploying additional timelocks.
      * Team tokens will not be greater than 25% based on the whitepaper.
+     *
+     * Also note that when using the factory, a unique uint256 _timeLockId must
+     * be passed in as the first value.
      */
-    await timeLockFactory.createTimeLock(0, token.address, accounts[3], teamUnlockTime, vestingStart, 12, 8, 1250);//  month tranche, 8 tranches, 12.5% disperse per tranche.
-    team_timelock_address = await timeLockFactory.timeLocks(0); //awaits timelock created with index 0.
-    token.transfer(team_timelock_address, team_amount, {from: accounts[0]});
-
-    // Deploy timelock contract for the community using factory
-    await timeLockFactory.createTimeLock(1, token.address, accounts[4], communityUnlockTime, vestingStart, 12, 2, 5000); // 3 month tranche, 2 tranches, 50% dispersed per tranche.
-    community_timelock_address = await timeLockFactory.timeLocks(1); //awaits timelock created with index 1.
+    await timeLockFactory.createTimeLock(0, token.address, accounts[4], communityUnlockTime, vestingStart, 12, 2, 5000); // 3 month tranche, 2 tranches, 50% dispersed per tranche.
+    community_timelock_address = await timeLockFactory.timeLocks(0); //awaits timelock created with index 1.
     token.transfer(community_timelock_address, community_amount, {from: accounts[0]});
 
+    // Deploy single instance of timelock contract with team tokens for testing purposes.
+    await deployer.deploy(ArtemisTimeLock, token.address, accounts[3], teamUnlockTime, vestingStart, 12, 8, 1250); //  3 month tranche, 8 tranches, 12.5% disperse per tranche.
+    const team_timeLock = await ArtemisTimeLock.deployed();
+    token.transfer(team_timeLock.address, team_amount, {from: accounts[0]});
+
     // Log some useful console data
-    console.log('Team Timelock Address: ' + team_timelock_address);
+    console.log('Team Timelock Address: ' + team_timeLock.address);
     console.log('Community Timelock Address: ' + community_timelock_address);
 }
