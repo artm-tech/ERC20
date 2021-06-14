@@ -3,7 +3,6 @@ pragma solidity ^0.5.0;
 
 
 import '@openzeppelin/contracts/crowdsale/Crowdsale.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/crowdsale/validation/TimedCrowdsale.sol';
 import '@openzeppelin/contracts/crowdsale/distribution/FinalizableCrowdsale.sol';
 
@@ -36,7 +35,6 @@ contract ArtmCrowdsale is Crowdsale, TimedCrowdsale, FinalizableCrowdsale {
         openingTime,
         closingTime
     )
-    FinalizableCrowdsale()
     public
     {
         require(withdrawAddress != address(0), "Crowdsale: withdraw address is the zero address");
