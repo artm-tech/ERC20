@@ -10,9 +10,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
 contract ArtemisTimeLock is TokenTimelock {
     using SafeERC20 for IERC20;
 
-    // The unique ID stored in the address mapping of the factory contract.
-    uint immutable public timeLockId;
-
     // The number of tranches required for the contract to fully vest.
     uint256 immutable internal maxTranches;
 
@@ -26,20 +23,13 @@ contract ArtemisTimeLock is TokenTimelock {
     uint256 immutable internal startTime;
 
     // Track how many tranches have been released
-    uint256 internal tranchesReleased = 0;
+    uint256 internal tranchesReleased;
 
-    /**
-     * @dev The initial token balance observed during the first release function
-     * call.  We use this this value to calculate the number of tokens to release
-     * in each tranche.  If more tokens are added after this value is set, they will
-     * be releasable after the contract is fully vested.
-     */
-    uint256 internal initialContractBalance = 0;
+    // The number of tokens that will be dispersed for each tranche cycle
+    uint256 internal disperseAmount;
 
     /**
      * @dev Constructs the Artemis Time Lock contract.
-     * @param _timeLockId is the numeric ID value that is used to
-     * retrieve the address of the corresponding timelock.
      * @param token_ is the address of the ERC20 token being stored.
      * @param beneficiary_ is the address where tokens will be distributed to.
      * @param releaseTime_ is the initial date/time when the release
@@ -52,7 +42,6 @@ contract ArtemisTimeLock is TokenTimelock {
      * during each tranche period.
      */
     constructor(
-        uint256 _timeLockId,
         IERC20 token_,
         address beneficiary_,
         uint256 releaseTime_,
@@ -73,7 +62,6 @@ contract ArtemisTimeLock is TokenTimelock {
         // Ensure that the tranches & percentages distributed add up to 100%.
         require(_maxTranches * _tranchePercent == 10000, "TokenTimeLock: percents and tranches do not = 100%");
 
-        timeLockId = _timeLockId;
         trancheWeeks = _trancheWeeks;
         maxTranches = _maxTranches;
         tranchePercent = _tranchePercent;
@@ -85,24 +73,22 @@ contract ArtemisTimeLock is TokenTimelock {
      * reverts if the release time has not been reached yet.  If it has been
      * reached, it then checks to ensure that the contract is still in possession
      * of the beneficiaries tokens.  If no tokens are available, it reverts.  If
-     * tokens are available, it then it checks to see if the initialContractBalance
-     * has been set.  If not set, it will set this value so that it can calculate
-     * the dispersal rate.
+     * tokens are available, it then it checks to see if the disperseAmount value
+     * has been set.  If not, it will calculate the value and assign it.
      *
      * Next, it uses the current block.timstamp to determine which tranche the
      * contract is currently in.  The first evaluation looks to see if the
      * contract is fully vested.  If the current tranche is greater than the
      * max number of tranches, the contract is fully vested - release all tokens.
      *
-     * Next, the contract evaluates that the number of tranches released is
-     * less than the maxTranches value, as well as that the currentTranche is
-     * greater than the tranchesReleased value.  If both statements evaluate to
-     * true, this indicates that tokens are available for release.  At this point
-     * the contract calculates the number of tokens to disperse and transfers them
-     * to the beneficiary.
+     * Next, the contract evaluates whether the currentTranche is greater than the
+     * tranchesReleased value.  If true, this indicates that tokens are available
+     * for release.  At this point the contract increments the tranchesReleased value
+     * and transfers the disperseAmount of tokens to the beneficiary.
      *
      * If none of the above conditions apply, this indicates that an early release
-     * call was made.  In this case, the contract reverts and provides an error.
+     * call was made.  In this case, the contract reverts and provides an error
+     * message.
      */
     function release() public override {
         // Requires that the releaseTime has arrived or the whole block fails.
@@ -111,13 +97,19 @@ contract ArtemisTimeLock is TokenTimelock {
         // Sets the amount of tokens currently held by this contract for beneficiary.
         uint256 _remaining_balance = token().balanceOf(address(this));
 
-        // revert with error if remaining balance is not greater than 0.
+        // Revert with error if remaining balance is not greater than 0.
         require(_remaining_balance > 0, "TokenTimelock: no tokens to release");
 
-        // The first time this function runs, it needs to determine the total balance of tokens.
-        // This allows a simple method for performing calculations on the initial balance.
-        if (initialContractBalance == 0) {
-            initialContractBalance = token().balanceOf(address(this));
+        /*
+         * @dev The first time the release() function successfully executes, the contract
+         * needs to determine how many tokens should be released for each tranche cycle.
+         * This value is set once and does not change over the life of the contract.
+         */
+        if (disperseAmount == 0) {
+
+            // Calculate and set the number of tokens needing to be dispersed for each tranche
+            // based on the number of tokens in the contract, and the tranchePercent specified.
+            disperseAmount = uint256(token().balanceOf(address(this))) * tranchePercent / 10000;
         }
 
         // Determine which tranche cycle we are currently in.
@@ -128,35 +120,23 @@ contract ArtemisTimeLock is TokenTimelock {
 
             // increment the number of tranches released, even after fully vested.
             tranchesReleased++;
-            
+
             // transfer ALL remaining tokens from the contract to the beneficiary.
             token().safeTransfer(beneficiary(), token().balanceOf(address(this)));
 
         // Transfer tokens if a tranche release is available.
-        } else if (tranchesReleased < maxTranches && currentTranche > tranchesReleased) {
+        } else if (currentTranche > tranchesReleased) {
 
             // increment the number of tranches released
-            // also prevents secondary release call from succeeding
+            // also prevents secondary release call from executing
             tranchesReleased++;
-
-            // calculate the number of tokens needing to be dispersed
-            uint256 disperseAmount = _calculateDisperse(initialContractBalance, tranchePercent);
 
             // transfer the disperseAmount to the beneficiary.
             token().safeTransfer(beneficiary(), disperseAmount);
         } else {
 
             // If none of the above conditions apply, early release was requested.  Revert w/error.
-            revert("TokenTimelock: tranche unavailable, requested too early.");
+            revert("TokenTimelock: tranche unavailable, release requested too early.");
         }
-    }
-
-    /**
-     * @param amount The amount of tokens that we want to calculate a percentage for.
-     * @param percent The percentage we are calculating with.
-     * @return the total amount of tokens needing to be dispersed.
-     */
-    function _calculateDisperse(uint256 amount, uint256 percent) internal virtual returns (uint256) {
-        return amount * percent / 10000;
     }
 }
