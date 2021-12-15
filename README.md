@@ -1,4 +1,4 @@
-# Artemis Token And Crowdsale
+# ARTM Token And Crowdsale
 
 ### Prerequisites
 * Node.js v14.16.1+
